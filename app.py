@@ -1,4 +1,5 @@
 from flask import session, Flask, redirect, url_for, request, render_template, flash
+import hashlib
 
 app = Flask(__name__)
 # Set the secret key to some random bytes. Keep this really secret!
@@ -7,9 +8,14 @@ app.secret_key = b'0216e3fecbced0c5bd14b5c40a027d81225148d8e3ee994cf2db1bd9ffdf0
 
 accounts = {
     "kostas": "1234",
-    "nikos": "5678",
-    "giannhs": "9101112"
+    "efthimis": "5678",
+    "mixalhs": "9101112"
 }
+
+for user, passw in accounts.items():
+    accounts[user] = hashlib.sha256(passw.encode('utf-8')).hexdigest()
+
+print(*accounts.items(), sep='\n')
 
 def private_page(func, *args, **kwargs):
     def ret(*_args, **_kwargs):
@@ -33,7 +39,8 @@ def index():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        if request.form['username'] in accounts and request.form['password'] == accounts[request.form['username']]:
+        if request.form['username'] in accounts and \
+            hashlib.sha256(request.form['password'].encode('utf-8')).hexdigest() == accounts[request.form['username']]:
             session['username'] = request.form['username']
             return redirect(url_for('index'))
         else:
