@@ -1,21 +1,56 @@
-from flask import session, Flask, redirect, url_for, request, render_template, flash
+from flask import session, Flask, redirect, url_for, request, render_template, flash, g
 import hashlib
+import sqlite3
 
 app = Flask(__name__)
 # Set the secret key to some random bytes. Keep this really secret!
 app.secret_key = b'0216e3fecbced0c5bd14b5c40a027d81225148d8e3ee994cf2db1bd9ffdf0890'
 
 
-accounts = {
-    "kostas": "1234",
-    "efthimis": "5678",
-    "mixalhs": "9101112"
-}
+# accounts = {
+    # "kostas": "1234",
+    # "efthimis": "5678",
+    # "mixalhs": "9101112"
+# }
+# 
+# for user, passw in accounts.items():
+    # accounts[user] = hashlib.sha256(passw.encode('utf-8')).hexdigest()
+# 
+# print(*accounts.items(), sep='\n')
 
-for user, passw in accounts.items():
-    accounts[user] = hashlib.sha256(passw.encode('utf-8')).hexdigest()
+DATABASE = 'database.db'
 
-print(*accounts.items(), sep='\n')
+def make_dicts(cursor, row):
+    return dict((cursor.description[idx][0], value)
+                for idx, value in enumerate(row))
+
+def get_db():
+    db = getattr(g, '_database', None)
+    if db is None:
+        db = g._database = sqlite3.connect(DATABASE)
+        db.row_factory = make_dicts
+    return db
+
+@app.teardown_appcontext
+def close_connection(exception):
+    db = getattr(g, '_database', None)
+    if db is not None:
+        db.close()
+
+def query_db(query, args=(), one=False):
+    cur = get_db().execute(query, args)
+    rv = cur.fetchall()
+    cur.close()
+    return (rv[0] if rv else None) if one else rv
+
+def init_db():
+    with app.app_context():
+        db = get_db()
+        with app.open_resource('schema.sql', mode='r') as f:
+            db.cursor().executescript(f.read())
+        db.commit()
+
+
 
 def private_page(func, *args, **kwargs):
     def ret(*_args, **_kwargs):
@@ -24,6 +59,9 @@ def private_page(func, *args, **kwargs):
         return func(*_args, **_kwargs)
     return ret
 
+with app.app_context():
+    for user in query_db('select * from users'):
+        print(user['username'], 'has the id', user['user_id'])
 
 @app.route('/secret')
 @private_page
@@ -39,8 +77,11 @@ def index():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        if request.form['username'] in accounts and \
-            hashlib.sha256(request.form['password'].encode('utf-8')).hexdigest() == accounts[request.form['username']]:
+        user = query_db('select * from users where username = ?',
+                [request.form['username']], one=True)
+       
+        if user is not None and \
+            hashlib.sha256(request.form['password'].encode('utf-8')).hexdigest() == user['password_hash']:
             session['username'] = request.form['username']
             return redirect(url_for('index'))
         else:
