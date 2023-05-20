@@ -63,10 +63,16 @@ with app.app_context():
     for user in query_db('select * from users'):
         print(user['username'], 'has the id', user['user_id'])
 
-@app.route('/secret')
+
+@app.route('/profile')
 @private_page
-def secret():
-    return "ONLY LOGGED IN USERS SHOULD SEE THIS"
+def profile():
+    profile_data = query_db('select * from profile where user_id = ?',
+                            [session['user_id']], one=True)
+
+    print(profile_data)
+    return render_template("profile.html", profile_data=profile_data)
+
 
 @app.route('/')
 def index():
@@ -83,7 +89,8 @@ def login():
         if user is not None and \
             hashlib.sha256(request.form['password'].encode('utf-8')).hexdigest() == user['password_hash']:
             session['username'] = request.form['username']
-            return redirect(url_for('index'))
+            session['user_id'] = user['user_id']
+            return redirect('/profile')
         else:
             flash('Kako username h password')
             return redirect(url_for('login'))
