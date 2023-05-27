@@ -64,9 +64,15 @@ with app.app_context():
         print(user['username'], 'has the id', user['user_id'])
 
 
-@app.route('/profile')
+@app.route('/profile', methods=['GET', 'POST'])
 @private_page
 def profile():
+    if request.method == 'POST':
+        new_desc = request.form['description_text']
+        query_db('UPDATE profile SET profile_text = ? WHERE user_id = ?', [new_desc, session['user_id']])
+        get_db().commit()
+
+
     profile_data = query_db('select * from profile where user_id = ?',
                             [session['user_id']], one=True)
 

@@ -1,3 +1,25 @@
 body {
     background-color: red;
 }
+
+
+img {
+    width: 50%;
+}
+
+.profile_data {
+    display: flex;
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid black;
+    border-radius: 0.2em;
+    justify-content: space-between;
+    height: 100px;
+}
+
+#description_text {
+    width: 50%;
+}
